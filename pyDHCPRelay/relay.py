@@ -22,6 +22,7 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
                  server_port=67,
                  logger=None):
         self._pkt_crafter = DHCPPktCrafter(server_address, server_port, logger)
+        self._pkt_crafter.BindToAddress()
 
         self._logger = logger
 
