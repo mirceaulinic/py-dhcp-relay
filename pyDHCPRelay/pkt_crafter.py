@@ -11,9 +11,10 @@ import pyDHCPRelay.util
 import pyDHCPRelay.exceptions
 
 from pyDHCPRelay.globals import DHCPGlobals
+from pyDHCPRelay.commons import DHCPCommons
 
 
-class DHCPPktCrafter(DHCPGlobals, DhcpClient):
+class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
 
 
     def __init__(self,
@@ -36,6 +37,8 @@ class DHCPPktCrafter(DHCPGlobals, DhcpClient):
         self._client_ip_address_pydhcplib = pydhcplib.type_ipv4.ipv4(self.DHCP_CLIENT_IP_ADDRESS).list()
         self._server_identifier_pydhcplib = pydhcplib.type_ipv4.ipv4(self.DHCP_SERVER_IDENTIFIER).list()
         # to not compute it when sending every packet
+
+        self.BindToAddress()
 
 
     def _build_basic_pkt(self,
