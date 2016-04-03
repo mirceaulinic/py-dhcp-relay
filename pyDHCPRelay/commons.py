@@ -3,6 +3,7 @@
 
 class DHCPCommons(object):
 
+    # common objects across listener instances
     xid_mac_map = dict()
     subs_up = dict()
 

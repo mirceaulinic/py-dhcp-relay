@@ -3,11 +3,11 @@
 
 from threading import Thread
 
-from pyDHCPRelay.commons import DHCPCommons
+# local modules
 from pyDHCPRelay.globals import DHCPGlobals
 
 
-class DHCPListener(DHCPCommons, DHCPGlobals, Thread):
+class DHCPListener(DHCPGlobals, Thread):
 
 
     def __init__(self,
@@ -15,8 +15,9 @@ class DHCPListener(DHCPCommons, DHCPGlobals, Thread):
                  logger=None):
 
         Thread.__init__(self)
-        self._logger = logger
+
         self._pkt_crafter = pkt_crafter
+        self._logger = logger
 
 
     def run(self):
@@ -27,7 +28,7 @@ class DHCPListener(DHCPCommons, DHCPGlobals, Thread):
 
                 xid = received_packet.GetOption("xid")
                 xid_str = '.'.join([str(xid_e) for xid_e in xid])
-                mac = self.xid_mac_map.get(xid_str)
+                mac = self._pkt_crafter.xid_mac_map.get(xid_str)
 
                 pkt_type = ''
 
@@ -47,9 +48,9 @@ class DHCPListener(DHCPCommons, DHCPGlobals, Thread):
 
                 elif received_packet.IsDhcpAckPacket():
                     pkt_type = 'DHCPACK'
-                    self.xid_mac_map.pop(xid_str, '')
+                    self._pkt_crafter.xid_mac_map.pop(xid_str, '')
                     if mac:
-                        self.subs_up[mac] = True
+                        self._pkt_crafter.subs_up[mac] = True
 
                 if self._logger is not None and self.LOGGING_ENABLED:
                     log_message = 'Received {pkt_type} message from AC, for XID: {xid}, corresponding for MAC address: {mac}.'.format(
