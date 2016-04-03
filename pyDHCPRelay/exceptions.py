@@ -1,0 +1,4 @@
+
+
+class PktTypeError(Exception):
+    pass
