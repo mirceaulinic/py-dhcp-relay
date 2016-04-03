@@ -164,9 +164,6 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
 
     @staticmethod
     def _rid():
-
-        # to generate a random Request ID
-
         return md5(str(time())).hexdigest()
 
 
@@ -226,10 +223,7 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
 
         for mac in mac_list:
             self.send_discover(mac)
-            count += 1
-            if count >= self.DDOS_PROTOCOL_VIOLATION_RATE:
-                sleep(1)  # TODO: this is awful too
-                count = 0
+            sleep(1.0/self.DDOS_PROTOCOL_VIOLATION_RATE)
 
         return True
 
