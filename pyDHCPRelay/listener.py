@@ -38,6 +38,7 @@ class DHCPListener(DHCPGlobals, Thread):
 
                     assigned_ip_address = received_packet.GetOption("yiaddr")
                     lease_time = received_packet.GetOption("ip_address_lease_time")
+                    self._pkt_crafter.mac_ip_map[mac] = assigned_ip_address
 
                     self._pkt_crafter.send_request(
                         xid,

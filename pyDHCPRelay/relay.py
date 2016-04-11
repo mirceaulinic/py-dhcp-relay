@@ -209,21 +209,18 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
 
         start_time = time()
 
-        while (not self.subs_up.get(mac)):
+        while (not self.subs_up.get(mac, '')):
             continue  # wait till subs comes up
 
-        self.subs_up.pop(mac)
+        self.subs_up.pop(mac, '')
 
-        return True
+        return self.mac_ip_map.pop(mac, '')  # returns the assigned IP Address
 
 
     def bring_subscribers_list_up(self, mac_list):
 
-        count = 0
-
         for mac in mac_list:
             self.send_discover(mac)
-            sleep(1.0/self.DDOS_PROTOCOL_VIOLATION_RATE)
 
         return True
 
