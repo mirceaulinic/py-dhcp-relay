@@ -25,9 +25,8 @@ class DHCPGlobals(object):
 
     MAX_WAIT_TIME = 3  # seconds
 
-    MAX_HOPS = 5
-
     DDOS_PROTOCOL_VIOLATION_RATE = 30
+    DDOS_RATE_TIME_DIFF = 1.0/DDOS_PROTOCOL_VIOLATION_RATE
 
     ######################
     # DO NOT MODIFY THIS:

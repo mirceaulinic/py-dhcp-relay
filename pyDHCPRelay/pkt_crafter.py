@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+# stdlib
+import time
+
 # third party libs
 import pydhcplib
 
@@ -75,12 +78,26 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
         return packet
 
 
+    def _send_packet(self, pkt):
+
+        if (time.time() - self.last_pkt_sent) < self.DDOS_RATE_TIME_DIFF:
+            time.sleep((self.last_pkt_sent+self.DDOS_RATE_TIME_DIFF) - time.time())
+
+        send_result = self.SendDhcpPacketTo(
+            pkt,
+            self.DHCP_SERVER_IP_ADDRESS,
+            self.DHCP_SERVER_PORT
+        )
+        self.last_pkt_sent = time.time()
+        return send_result
+
+
     def _basic_sender_with_rid(self,
-                                    pkt_type,
-                                    rid,
-                                    xid,
-                                    mac,
-                                    ip=None):
+                               pkt_type,
+                               rid,
+                               xid,
+                               mac,
+                               ip=None):
 
         if self._logger is not None and self.LOGGING_ENABLED:
             self._logger.info(
@@ -114,14 +131,9 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
 
         try:
             packet = self._build_basic_pkt(pkt_type=pkt_type, xid=xid, mac=mac)
-            if pkt_type == 'DHCPDISCOVER' and ip is not None:
+            if pkt_type == 'DHCPDISCOVER' and pyDHCPRelay.util.check_ip_address(ip):
                 packet.SetOption("request_ip_address", pydhcplib.type_ipv4.ipv4(ip).list()) # Requested IP address
-
-            self.SendDhcpPacketTo(
-                packet,
-                self.DHCP_SERVER_IP_ADDRESS,
-                self.DHCP_SERVER_PORT
-            )
+            self._send_packet(packet)
         except Exception as e:
             if self._logger is not None and self.LOGGING_ENABLED:
                 self._logger.error(
@@ -148,19 +160,19 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
 
 
     def send_discover(self,
-                           rid,
-                           xid,
-                           mac,
-                           ip=None):
+                      rid,
+                      xid,
+                      mac,
+                      ip=None):
 
         return self._basic_sender_with_rid('DHCPDISCOVER', rid, xid, mac, ip)
 
 
     def send_request(self,
-                          xid,
-                          mac,
-                          ip,
-                          lease_time):
+                     xid,
+                     mac,
+                     ip,
+                     lease_time):
 
         if self._logger is not None and self.LOGGING_ENABLED:
             self._logger.info(
@@ -203,12 +215,7 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
             packet = self._build_basic_pkt(pkt_type='DHCPREQUEST', xid=xid, mac=mac)
             packet.SetOption("request_ip_address", ip)
             packet.SetOption("ip_address_lease_time", lease_time)
-
-            self.SendDhcpPacketTo(
-                packet,
-                self.DHCP_SERVER_IP_ADDRESS,
-                self.DHCP_SERVER_PORT
-            )
+            self._send_packet(packet)
         except Exception as e:
             if self._logger is not None and self.LOGGING_ENABLED:
                 self._logger.error(
@@ -232,6 +239,9 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
         return True
 
 
-    def send_release(self, rid, xid, mac):
+    def send_release(self,
+                     rid,
+                     xid,
+                     mac):
 
         return self._basic_sender_with_rid('DHCPRELEASE', rid, xid, mac)
