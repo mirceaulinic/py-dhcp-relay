@@ -1,5 +1,17 @@
-#!/usr/bin/python
-
+# -*- coding: utf-8 -*-
+# Copyright 2016, 2017 Mircea Ulinic. All rights reserved.
+#
+# The contents of this file are licensed under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with the
+# License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
 
 # std lib
 import os
@@ -11,109 +23,89 @@ from functools import wraps
 from random import randrange
 
 # local modules
-import pyDHCPRelay.exceptions
-from pyDHCPRelay.commons import DHCPCommons
-from pyDHCPRelay.globals import DHCPGlobals
-from pyDHCPRelay.listener import DHCPListener
-from pyDHCPRelay.pkt_crafter import DHCPPktCrafter
+import dhcp_relay.exceptions
+from dhcp_relay.commons import DHCPCommons
+from dhcp_relay.globals import DHCPGlobals
+from dhcp_relay.listener import DHCPListener
+from dhcp_relay.pkt_crafter import DHCPPktCrafter
 
 
 class DHCPRelay(DHCPCommons, DHCPGlobals):
-
 
     def __init__(self,
                  server_address,
                  server_port=67,
                  logger=None):
         self._pkt_crafter = DHCPPktCrafter(server_address, server_port, logger)
-
         self._logger = logger
-
 
     @property
     def client_address(self):
         return self.DHCP_CLIENT_IP_ADDRESS
 
-
     @client_address.setter
     def client_address(self, value):
         self.DHCP_CLIENT_IP_ADDRESS = value
-
 
     @property
     def server_identifier(self):
         return self.DHCP_SERVER_IDENTIFIER
 
-
     @server_identifier.setter
     def server_identifier(self, value):
         self.DHCP_SERVER_IDENTIFIER = value
-
 
     @property
     def client_port(self):
         return self.DHCP_CLIENT_PORT
 
-
     @client_port.setter
     def client_port(self, value):
         self.DHCP_CLIENT_PORT = value
-
 
     @property
     def default_request_address(self):
         return self.DUMMY_IP_ADDRESS
 
-
     @default_request_address.setter
     def default_request_address(self, value):
         self.DUMMY_IP_ADDRESS = value
-
 
     @property
     def lease_time(self):
         return self.DHCP_LEASE_TIME
 
-
     @lease_time.setter
     def lease_time(self, value):
         self.DHCP_LEASE_TIME = value
-
 
     @property
     def log_enabled(self):
         return self.LOGGING_ENABLED
 
-
     @log_enabled.setter
     def log_enabled(self, value):
         self.LOGGING_ENABLED = value
-
 
     @property
     def log_dir(self):
         return self.LOG_DIRECTORY
 
-
     @log_dir.setter
     def log_dir(self, value):
         self.LOG_DIRECTORY = value
-
 
     @property
     def log_details(self):
         return self.DETAILED_LOG
 
-
     @log_details.setter
     def log_details(self, value):
         self.DETAILED_LOG = value
 
-
     @property
     def listeners(self):
         return self.LISTENERS
-
 
     @listeners.setter
     def listeners(self, value):
@@ -123,21 +115,17 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
     def timeout(self):
         return self.MAX_WAIT_TIME
 
-
     @timeout.setter
     def timeout(self, value):
         self.MAX_WAIT_TIME = value
-
 
     @property
     def ddos_limit(self):
         return self.DDOS_PROTOCOL_VIOLATION_RATE
 
-
     @ddos_limit.setter
     def ddos_limit(self, value):
         self.DDOS_PROTOCOL_VIOLATION_RATE = value
-
 
     def connect():
         self._pkt_crafter.connect()
@@ -148,32 +136,26 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
         for _listener in _listeners:
             _listener.start()
 
-
     @staticmethod
     def _xid():
-
         _xid = [
             randrange(255),
             randrange(255),
             randrange(255),
             randrange(255),
         ] # random transaction ID
-
         return _xid
-
 
     @staticmethod
     def _rid():
         return md5(str(time())).hexdigest()
-
 
     def timeout(wait):
         def wrap_function(func):
             @wraps(func)
             def __wrapper(*args, **kwargs):
                 def handler(signum, frame):
-                    raise pyDHCPRelay.exceptions.TimeoutException
-
+                    raise dhcp_relay.exceptions.TimeoutException
                 old = signal.signal(signal.SIGALRM, handler)
                 signal.setitimer(signal.ITIMER_REAL, float(wait) / 1000)
                 try:
@@ -184,12 +166,9 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
             return __wrapper
         return wrap_function
 
-
     def send_discover(self, mac, ip=None):
-
         _xid = self._xid()
         _rid = self._rid()  # Unique Request ID
-
         _xid_str = '.'.join([str(xid_e) for xid_e in xid])
         self.xid_mac_map[_xid_str] = mac
         self.subs_up[mac] = False
@@ -200,41 +179,26 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
         return self._pkt_crafter.send_discover(_rid, _xid, mac, ip)
         # sends DHCP Discover Packet
 
-
     @timeout(self.MAX_WAIT_TIME)
     def bring_subscriber_up(self, mac, ip=None):
-
         if not self.send_discover(mac, ip):
             return False
-
         start_time = time()
-
         while (not self.subs_up.get(mac, '')):
             continue  # wait till subs comes up
-
         self.subs_up.pop(mac, '')
-
         return self.mac_ip_map.pop(mac, '')  # returns the assigned IP Address
 
-
     def bring_subscribers_list_up(self, mac_list):
-
         for mac in mac_list:
             self.send_discover(mac)
-
         return True
 
-
     def send_release(self, mac):
-
         _xid = self._xid()
         _rid = self._rid()
-
         self._pkt_crafter.send_release(_rid, _xid, mac)
 
-
     def bring_subscriber_down(self, mac):
-
         self.send_release(mac)
-
         return True
