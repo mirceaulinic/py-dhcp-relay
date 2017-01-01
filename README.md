@@ -31,7 +31,7 @@ max_time: 5
 ddos_rate: 30
 log_file: /path/to/log/file
 log_level: warning
-log_datefmt_logfile: '%Y-%m-%d %H:%M:%S'
+log_date_format: '%Y-%m-%d %H:%M:%S'
 log_full: true
 ```
 
@@ -53,7 +53,7 @@ Command line options:
 - `--client-host`: hostname or IP address to be used to make the requests. Default: will use the loopback address of the machine
 - `--client-port`: client port. Default: 67
 - `-l` or `--log-level`: logging level. Default: warning
-- `--log-file`: logging file. Default: /var/log/dhcp-relay.log
+- `--log-file`: logging file. Default: `/var/log/dhcp-relay.log`
 - `--log-full`: if will log complete details (including packet structure etc.). Default: False
 
 **Note**: the CLI options will override the settings from the YAML configuration file.
