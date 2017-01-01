@@ -1,4 +1,17 @@
-#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# Copyright 2016, 2017 Mircea Ulinic. All rights reserved.
+#
+# The contents of this file are licensed under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with the
+# License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations under
+# the License.
 
 # stdlib
 import time
@@ -10,55 +23,46 @@ from pydhcplib.dhcp_packet import *
 from pydhcplib.dhcp_network import *
 
 # local modules
-import pyDHCPRelay.util
-import pyDHCPRelay.exceptions
+import dhcp_relay.util
+import dhcp_relay.exceptions
 
-from pyDHCPRelay.globals import DHCPGlobals
-from pyDHCPRelay.commons import DHCPCommons
+from dhcp_relay.globals import DHCPGlobals
+from dhcp_relay.commons import DHCPCommons
 
 
 class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
-
 
     def __init__(self,
                  server_address,
                  server_port=67,
                  logger=None):
-
         self._logger = logger
 
 
     def connect():
-
         DhcpClient.__init__(
             self,
             self.DHCP_CLIENT_IP_ADDRESS,
             self.DHCP_SERVER_PORT,
             self.DHCP_SERVER_PORT
         )
-
         self._client_ip_address_pydhcplib = pydhcplib.type_ipv4.ipv4(self.DHCP_CLIENT_IP_ADDRESS).list()
         self._server_identifier_pydhcplib = pydhcplib.type_ipv4.ipv4(self.DHCP_SERVER_IDENTIFIER).list()
         # to not compute it when sending every packet
-
         self.BindToAddress()
-
 
     def _build_basic_pkt(self,
                          pkt_type,
                          xid,
                          mac=None):
-
         if pkt_type not in self.DHCPLIB_CONSTANTS.keys():
-            raise pyDHCPRelay.exceptions.PktTypeError(
+            raise dhcp_relay.exceptions.PktTypeError(
                 "Invalid DHCP packet type: {pkt_type}. Choose between: {pkt_type_list}.".format(
                     pkt_type=pkt_type,
                     pkt_type_list=', '.join(self.DHCPLIB_CONSTANTS.keys())
                 )
             )
-
         packet = DhcpPacket()
-
         packet.SetOption("op", [self.DHCPLIB_CONSTANTS.get(pkt_type, {}).get('op', 1)])  # REQUEST
         # See http://www.iana.org/assignments/arp-parameters/arp-parameters.xhtml
         # htype 29 : IP and ARP over ISO 7816-3
@@ -67,7 +71,6 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
         packet.SetOption("hops", [self.MAX_HOPS])  # Number of hops
         packet.SetOption("giaddr", self._client_ip_address_pydhcplib)
         packet.SetOption("xid", xid)  # Transaction ID
-
         packet.SetOption("dhcp_message_type", [self.DHCPLIB_CONSTANTS.get(pkt_type).get('dhcp_message_type')])
         packet.SetOption("server_identifier", self._server_identifier_pydhcplib)
         if mac:
@@ -77,12 +80,9 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
 
         return packet
 
-
     def _send_packet(self, pkt):
-
         if (time.time() - self.last_pkt_sent) < self.DDOS_RATE_TIME_DIFF:
             time.sleep((self.last_pkt_sent+self.DDOS_RATE_TIME_DIFF) - time.time())
-
         send_result = self.SendDhcpPacketTo(
             pkt,
             self.DHCP_SERVER_IP_ADDRESS,
@@ -91,14 +91,12 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
         self.last_pkt_sent = time.time()
         return send_result
 
-
     def _basic_sender_with_rid(self,
                                pkt_type,
                                rid,
                                xid,
                                mac,
                                ip=None):
-
         if self._logger is not None and self.LOGGING_ENABLED:
             self._logger.info(
                 "Received request #{rid} to send {pkt_type} packet for MAC Address: {mac}, using XID: {xid}".format(
@@ -108,8 +106,7 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     pkt_type=pkt_type
                 )
             )
-
-        if not pyDHCPRelay.util.check_xid(xid):
+        if not dhcp_relay.util.check_xid(xid):
             if self._logger is not None and self.LOGGING_ENABLED:
                 self._logger.error(
                     "Invalid XID ({xid}) for request #{rid}".format(
@@ -118,8 +115,7 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     )
                 )
             return False
-
-        if not pyDHCPRelay.util.check_mac_address(mac):
+        if not dhcp_relay.util.check_mac_address(mac):
             if self._logger is not None and self.LOGGING_ENABLED:
                 self._logger.error(
                     "Invalid MAC Address ({mac}) for request #{rid}".format(
@@ -128,10 +124,9 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     )
                 )
             return False
-
         try:
             packet = self._build_basic_pkt(pkt_type=pkt_type, xid=xid, mac=mac)
-            if pkt_type == 'DHCPDISCOVER' and pyDHCPRelay.util.check_ip_address(ip):
+            if pkt_type == 'DHCPDISCOVER' and dhcp_relay.util.check_ip_address(ip):
                 packet.SetOption("request_ip_address", pydhcplib.type_ipv4.ipv4(ip).list()) # Requested IP address
             self._send_packet(packet)
         except Exception as e:
@@ -144,7 +139,6 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     )
                 )
             return False
-
         if self._logger is not None and self.LOGGING_ENABLED:
             log_message = "{pkt_type} sent for request #{rid}.".format(
                 rid=rid,
@@ -155,25 +149,20 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     pkt=packet.str()
                 )
             self._logger.info(log_message)
-
         return True
-
 
     def send_discover(self,
                       rid,
                       xid,
                       mac,
                       ip=None):
-
         return self._basic_sender_with_rid('DHCPDISCOVER', rid, xid, mac, ip)
-
 
     def send_request(self,
                      xid,
                      mac,
                      ip,
                      lease_time):
-
         if self._logger is not None and self.LOGGING_ENABLED:
             self._logger.info(
                 "Received request to send DHCPREQUEST packet for MAC Address: {mac}, using XID: {xid}".format(
@@ -181,8 +170,7 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     xid=str(xid)
                 )
             )
-
-        if not pyDHCPRelay.util.check_xid(xid):
+        if not dhcp_relay.util.check_xid(xid):
             if self._logger is not None and self.LOGGING_ENABLED:
                 self._logger.error(
                     "Invalid XID ({xid})".format(
@@ -190,8 +178,7 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     )
                 )
             return False
-
-        if not pyDHCPRelay.util.check_mac_address(mac):
+        if not dhcp_relay.util.check_mac_address(mac):
             if self._logger is not None and self.LOGGING_ENABLED:
                 self._logger.error(
                     "Invalid MAC Address ({mac}) for XID {xid}".format(
@@ -200,8 +187,7 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     )
                 )
             return False
-
-        if not pyDHCPRelay.util.check_ip_address(ip):
+        if not dhcp_relay.util.check_ip_address(ip):
             if self._logger is not None and self.LOGGING_ENABLED:
                 self._logger.error(
                     "Invalid IP Address ({ip}) for XID {xid}".format(
@@ -210,7 +196,6 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     )
                 )
             return False
-
         try:
             packet = self._build_basic_pkt(pkt_type='DHCPREQUEST', xid=xid, mac=mac)
             packet.SetOption("request_ip_address", ip)
@@ -225,7 +210,6 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     )
                 )
             return False
-
         if self._logger is not None and self.LOGGING_ENABLED:
             log_message = "DHCPREQUEST sent for XID: {xid}.".format(
                 xid=str(xid)
@@ -235,13 +219,10 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
                     pkt=packet.str()
                 )
             self._logger.info(log_message)
-
         return True
-
 
     def send_release(self,
                      rid,
                      xid,
                      mac):
-
         return self._basic_sender_with_rid('DHCPRELEASE', rid, xid, mac)
