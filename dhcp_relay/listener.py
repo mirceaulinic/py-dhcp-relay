@@ -13,23 +13,25 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+# import stdlib
+import logging
 from threading import Thread
 
 # local modules
 from dhcp_relay.globals import DHCPGlobals
 
+log = logging.getLogger(__name__)
+
 
 class DHCPListener(DHCPGlobals, Thread):
 
     def __init__(self,
-                 pkt_crafter,
-                 logger=None):
-
+                 relay,
+                 pkt_crafter):
         Thread.__init__(self)
-
+        self._relay = relay
         self._pkt_crafter = pkt_crafter
-        self._logger = logger
-
+        log.addHandler(self._relay.LOGGING_HANDLER)
 
     def run(self):
         while True:
@@ -55,14 +57,12 @@ class DHCPListener(DHCPGlobals, Thread):
                     self._pkt_crafter.xid_mac_map.pop(xid_str, '')
                     if mac:
                         self._pkt_crafter.subs_up[mac] = True
-                if self._logger is not None and self.LOGGING_ENABLED:
-                    log_message = 'Received {pkt_type} message from AC, for XID: {xid}, corresponding for MAC address: {mac}.'.format(
-                        xid=str(xid),
-                        mac=str(mac),
-                        pkt_type=pkt_type
-                    )
-                    if self.DETAILED_LOG:
-                        log_message += '\nPacket structure:\n{pkt}'.format(
-                            pkt=received_packet.str()
-                        )
-                    self._logger.info(log_message)
+                if self._relay.LOGGING_ENABLED:
+                    log_message('Received {pkt_type} message from AC, for XID: '
+                                '{xid}, corresponding for MAC address: {mac}.'\
+                                .format(xid=str(xid),
+                                        mac=str(mac),
+                                        pkt_type=pkt_type))
+                    if self._relay.DETAILED_LOG:
+                        log.debug('Packet structure')
+                        log.debug(received_packet.str())

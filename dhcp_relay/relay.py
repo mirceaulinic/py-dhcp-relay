@@ -31,8 +31,9 @@ from dhcp_relay.globals import DHCPGlobals
 from dhcp_relay.listener import DHCPListener
 from dhcp_relay.pkt_crafter import DHCPPktCrafter
 
-_MAX_WAIT_TIME = DHCPDefaults.MAX_WAIT
+log = logging.getLogger(__name__)
 
+_MAX_WAIT_TIME = DHCPDefaults.MAX_WAIT
 
 
 class DHCPRelay(DHCPCommons, DHCPGlobals):
@@ -70,15 +71,14 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
                              daemon=daemon,
                              multiprocessing=multiprocessing)
         _MAX_WAIT_TIME = self.MAX_WAIT
-        logger = None
-        self._pkt_crafter = DHCPPktCrafter(self, logger)
-        self._logger = logger
+        self._pkt_crafter = DHCPPktCrafter(self)
+        log.addHandler(self.LOGGING_HANDLER)
 
     def connect():
         self._pkt_crafter.connect()
-        _listeners = list()
-        for _ in range(DHCPGlobals.LISTENERS):  # start as many listeners as needed
-            _listener = DHCPListener(self._pkt_crafter, self._logger)
+        _listeners = []
+        for _ in range(selg.LISTENERS):  # start as many listeners as needed
+            _listener = DHCPListener(self, self._pkt_crafter)
             _listeners.append(_listener)
         for _listener in _listeners:
             _listener.start()

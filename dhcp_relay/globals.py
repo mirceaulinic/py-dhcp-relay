@@ -15,6 +15,7 @@
 
 # import std lib
 import os
+import sys
 import socket
 import logging
 from logging.handlers import RotatingFileHandler
@@ -115,8 +116,8 @@ class DHCPGlobals(DHCPDefaults):
                                                      logging.WARNING)
         log_dir = os.path.dirname(self.LOG_FILE)
         if not os.path.exists(log_dir):
-            logging.getLogger(__name__).info('Log directory not found, \
-                trying to create it: {0}'.format(log_dir))
+            print('Log directory not found,'
+                  'trying to create it: {0}'.format(log_dir))
             try:
                 os.makedirs(log_dir, mode=0o700)
             except OSError as ose:
@@ -197,6 +198,8 @@ class DHCPGlobals(DHCPDefaults):
         self.CLIENT_IP = socket.gethostbyname(socket.gethostname())
 
     def _client_ip_arg(self):
+        self._get_lo0()  # by default will use the configured lo0
+        # on the client server
         if self._config_file_buf:
             self.CLIENT_IP = self._config_file_buf.get('client', {})\
                                                   .get('ip')
@@ -222,5 +225,5 @@ class DHCPGlobals(DHCPDefaults):
         )
         self._process_kwargs(_all_other_args)
         if hasattr(self, 'DDOS_LIMIT') and self.DDOS_LIMIT:
-            PKT_SPLAY = 1.0/self.DDOS_LIMIT  # time between two consecutive
+            self.PKT_SPLAY = 1.0/self.DDOS_LIMIT  # time between two consecutive
             # DHCP requests when the DDoS limit is configured
