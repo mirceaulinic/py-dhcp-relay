@@ -13,32 +13,20 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+# third party libs
+import yaml
 
-class DHCPGlobals:
+# import local modules
+from dhcp_relay.defaults import DHCPDefaults
 
-    DHCP_SERVER_IP_ADDRESS = "172.20.0.3"  # to be set by the user
-    DHCP_CLIENT_IP_ADDRESS = "192.168.4.204"  # to get lo0 of the running machine and also allow setter
-    DHCP_SERVER_IDENTIFIER = "172.20.8.1"  # by default is DHCP_SERVER_IP_ADDRESS, allows setter
 
-    DHCP_SERVER_PORT = 67  # can be set by the user
-    DHCP_CLIENT_PORT = 67
+class DHCPGlobals(DHCPDefaults):
 
-    DUMMY_IP_ADDRESS = "172.17.17.1"
-
-    DHCP_LEASE_TIME = 24 * 3600
-
-    LOG_DIRECTORY = '/var/log/NOC/'
-
-    LOGGING_ENABLED = True
-
-    DETAILED_LOG = True
-
-    LISTENERS = 1
-
-    MAX_WAIT_TIME = 3  # seconds
-
-    DDOS_PROTOCOL_VIOLATION_RATE = 30
-    DDOS_RATE_TIME_DIFF = 1.0/DDOS_PROTOCOL_VIOLATION_RATE
+    SERVER_IP = None
+    SERVER_IDENTIFIER = None  # by default will be the SERVER_IP
+    CLIENT_IP = None  # if not specified will take lo0
+    DDOS_LIMIT = None
+    PKT_SPLAY = None  # only if DDoS rate is set
 
     ######################
     # DO NOT MODIFY THIS:
@@ -46,20 +34,136 @@ class DHCPGlobals:
 
     DHCPLIB_CONSTANTS = {
         'DHCPDISCOVER': {
-            'op'                : 1,
-            'dhcp_message_type' : 1
+            'op': 1,
+            'dhcp_message_type': 1
         },
         'DHCPREQUEST': {
-            'op'                : 1,
-            'dhcp_message_type' : 3
+            'op': 1,
+            'dhcp_message_type': 3
         },
         'DHCPRELEASE': {
-            'op'                : 1,
-            'dhcp_message_type' : 7
+            'op': 1,
+            'dhcp_message_type': 7
         }
     }
 
     ######################
 
-    def __init__(self):
-        pass
+    _config_file_buf = None
+
+    def __init__(self,
+                 config_file=None,
+                 server_ip=None,
+                 server_id=None,
+                 server_port=None,
+                 client_ip=None,
+                 client_port=None,
+                 lease_time=None,
+                 listener_threads=None,
+                 max_wait=None,
+                 log_level=None,
+                 log_file=None,
+                 log_full=None,
+                 log_date_format=None,
+                 daemon=None,
+                 multiprocessing=None):
+        # CLI arguments
+        # none of them mandatory
+        self._config_file = config_file
+        self._server_ip = server_ip
+        self._server_port = server_port
+        self._server_id = server_id
+        self._client_ip = client_ip
+        self._client_port = client_port
+        self._lease_time = lease_time
+        self._listener_threads = listener_threads
+        self._max_wait = max_wait
+        self._ddos_limit = ddos_limit
+        self._log_level = log_level
+        self._log_file = log_file
+        self._log_full = log_full
+        self._log_date_format = log_date_format
+        self._daemon = daemon
+        self._multiprocessing = multiprocessing
+
+        self._process_args()
+
+    def _process_args(self):
+        self._config_file_arg()  # mandatory to be processed at the beginning
+
+        self._server_ip_arg()
+        self._server_id_arg()
+        self._server_port_arg()
+        self._client_ip_arg()
+        self._client_port_arg()
+
+        self._other_args()
+
+    def _config_file_arg(self):
+        if self._config_file:
+            self.CONFIG_FILE = self._config_file
+        try:
+            _cfg_file_stream = file(self.CONFIG_FILE, 'r')
+            self._config_file_buf = yaml.load(_cfg_file_stream)
+        except IOError:
+            # no cfg file, no problem
+            pass
+
+    def _server_ip_arg(self):
+        if self._config_file_buf:
+            self.SERVER_IP = self._config_file_buf.get('server', {})\
+                                                  .get('ip')
+        if self._server_ip:
+            self.SERVER_IP = self._server_ip
+
+    def _server_id_arg(self):
+        if self._config_file_buf:
+            self.SERVER_ID = self._config_file_buf.get('server', {})\
+                                                  .get('id',
+                                                       self.SERVER_IP)
+        if self._server_ip:
+            self.SERVER_ID = self._server_id
+
+    def _server_port_arg(self):
+        if self._config_file_buf:
+            self.SERVER_PORT = self._config_file_buf.get('server', {})\
+                                                    .get('port',
+                                                         self.SERVER_PORT)
+        if self._server_ip:
+            self.SERVER_PORT = self._server_ip
+
+    def _client_ip_arg(self):
+        if self._config_file_buf:
+            self.CLIENT_IP = self._config_file_buf.get('client', {})\
+                                                  .get('ip')
+        if self._server_ip:
+            self.CLIENT_IP = self._server_ip
+
+    def _client_port_arg(self):
+        if self._config_file_buf:
+            self.CLIENT_PORT = self._config_file_buf.get('client', {})\
+                                                    .get('port',
+                                                         self.CLIENT_PORT)
+        if self._client_ip:
+            self.CLIENT_PORT = self._client_ip
+
+    def _other_args(self):
+        _all_other_args = (
+            'lease_time',
+            'listener_threads',
+            'max_wait',
+            'ddos_limit',
+            'log_file',
+            'log_level',
+            'log_date_format',
+            'log_full'
+        )
+        for arg in _all_other_args:
+            attr = arg.upper()
+            val = None
+            default = getattr(self, arg, None)
+            if self._config_file_buf:
+                setattr(self, attr, self._config_file_buf.get(arg))
+            cli_val = getattr(self, '_'+arg, None)
+            if cli_val is not None:
+                setattr(self, attr, cli_val)

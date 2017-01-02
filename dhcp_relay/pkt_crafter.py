@@ -30,24 +30,23 @@ from dhcp_relay.globals import DHCPGlobals
 from dhcp_relay.commons import DHCPCommons
 
 
-class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
+class DHCPPktCrafter(DhcpClient):
 
     def __init__(self,
-                 server_address,
-                 server_port=67,
+                 relay,
                  logger=None):
+        self._relay = relay
         self._logger = logger
-
 
     def connect():
         DhcpClient.__init__(
             self,
-            self.DHCP_CLIENT_IP_ADDRESS,
-            self.DHCP_SERVER_PORT,
-            self.DHCP_SERVER_PORT
+            self.CLIENT_IP,
+            self.SERVER_PORT,
+            self.SERVER_PORT
         )
-        self._client_ip_address_pydhcplib = pydhcplib.type_ipv4.ipv4(self.DHCP_CLIENT_IP_ADDRESS).list()
-        self._server_identifier_pydhcplib = pydhcplib.type_ipv4.ipv4(self.DHCP_SERVER_IDENTIFIER).list()
+        self._client_ip_address_pydhcplib = pydhcplib.type_ipv4.ipv4(self.CLIENT_IP).list()
+        self._server_identifier_pydhcplib = pydhcplib.type_ipv4.ipv4(self.SERVER_ID).list()
         # to not compute it when sending every packet
         self.BindToAddress()
 
@@ -85,8 +84,8 @@ class DHCPPktCrafter(DHCPGlobals, DHCPCommons, DhcpClient):
             time.sleep((self.last_pkt_sent+self.DDOS_RATE_TIME_DIFF) - time.time())
         send_result = self.SendDhcpPacketTo(
             pkt,
-            self.DHCP_SERVER_IP_ADDRESS,
-            self.DHCP_SERVER_PORT
+            self.SERVER_IP,
+            self.SERVER_PORT
         )
         self.last_pkt_sent = time.time()
         return send_result

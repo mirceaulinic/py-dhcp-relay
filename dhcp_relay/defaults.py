@@ -13,14 +13,26 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+class DHCPDefaults:
 
-class DHCPCommons:
+    CONFIG_FILE = '/etc/dhcp-relay/config.yml'
 
-    # common objects across listener instances
-    xid_mac_map = {}
-    subs_up = {}
-    mac_ip_map= {}
-    last_pkt_sent = 0
+    DAEMON = True
+    MULTIPROCESSING = True
 
-    def __init__(self):
-        pass
+    SERVER_PORT = 67  # can be set by the user
+    CLIENT_PORT = 67
+
+    DUMMY_IP_ADDRESS = '172.17.17.1'
+
+    LEASE_TIME = 24 * 3600
+
+    LOGGING_ENABLED = True
+    LOG_FILE = '/var/log/dhcp-relay.log'
+    LOG_LEVEL = 'warning'
+    LOG_DATEFMT = '%Y-%m-%d %H:%M:%S'
+    DETAILED_LOG = True
+
+    LISTENER_THREADS = 5
+
+    MAX_WAIT = 3  # seconds

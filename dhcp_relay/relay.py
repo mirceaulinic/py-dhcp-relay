@@ -15,117 +15,61 @@
 
 # std lib
 import os
-import signal
-from time import time
-from time import sleep
-from hashlib import md5
-from functools import wraps
-from random import randrange
+import time
+import random
+import hashlib
+
+# third party libs
+from timeout_decorator import timeout
 
 # local modules
 import dhcp_relay.exceptions
 from dhcp_relay.commons import DHCPCommons
+from dhcp_relay.defaults import DHCPDefaults
 from dhcp_relay.globals import DHCPGlobals
 from dhcp_relay.listener import DHCPListener
 from dhcp_relay.pkt_crafter import DHCPPktCrafter
+
+_MAX_WAIT_TIME = DHCPDefaults.MAX_WAIT
 
 
 class DHCPRelay(DHCPCommons, DHCPGlobals):
 
     def __init__(self,
-                 server_address,
-                 server_port=67,
-                 logger=None):
-        self._pkt_crafter = DHCPPktCrafter(server_address, server_port, logger)
+                 config_file=None,
+                 server_ip=None,
+                 server_id=None,
+                 server_port=None,
+                 client_ip=None,
+                 client_port=None,
+                 lease_time=None,
+                 listener_threads=None,
+                 max_wait=None,
+                 log_level=None,
+                 log_file=None,
+                 log_full=None,
+                 log_date_format=None,
+                 daemon=None,
+                 multiprocessing=None):
+        DHCPGlobals.__init__(self,
+                             config_file=config_file,
+                             server_ip=server_ip,
+                             server_id=server_id,
+                             server_port=server_port,
+                             client_ip=client_ip,
+                             client_port=client_port,
+                             lease_time=lease_time,
+                             listener_threads=listener_threads,
+                             max_wait=max_wait,
+                             log_level=log_level,
+                             log_file=log_file,
+                             log_full=log_full,
+                             log_date_format=log_date_format,
+                             daemon=daemon,
+                             multiprocessing=multiprocessing)
+        _MAX_WAIT_TIME = self.MAX_WAIT
+        self._pkt_crafter = DHCPPktCrafter(self, logger)
         self._logger = logger
-
-    @property
-    def client_address(self):
-        return self.DHCP_CLIENT_IP_ADDRESS
-
-    @client_address.setter
-    def client_address(self, value):
-        self.DHCP_CLIENT_IP_ADDRESS = value
-
-    @property
-    def server_identifier(self):
-        return self.DHCP_SERVER_IDENTIFIER
-
-    @server_identifier.setter
-    def server_identifier(self, value):
-        self.DHCP_SERVER_IDENTIFIER = value
-
-    @property
-    def client_port(self):
-        return self.DHCP_CLIENT_PORT
-
-    @client_port.setter
-    def client_port(self, value):
-        self.DHCP_CLIENT_PORT = value
-
-    @property
-    def default_request_address(self):
-        return self.DUMMY_IP_ADDRESS
-
-    @default_request_address.setter
-    def default_request_address(self, value):
-        self.DUMMY_IP_ADDRESS = value
-
-    @property
-    def lease_time(self):
-        return self.DHCP_LEASE_TIME
-
-    @lease_time.setter
-    def lease_time(self, value):
-        self.DHCP_LEASE_TIME = value
-
-    @property
-    def log_enabled(self):
-        return self.LOGGING_ENABLED
-
-    @log_enabled.setter
-    def log_enabled(self, value):
-        self.LOGGING_ENABLED = value
-
-    @property
-    def log_dir(self):
-        return self.LOG_DIRECTORY
-
-    @log_dir.setter
-    def log_dir(self, value):
-        self.LOG_DIRECTORY = value
-
-    @property
-    def log_details(self):
-        return self.DETAILED_LOG
-
-    @log_details.setter
-    def log_details(self, value):
-        self.DETAILED_LOG = value
-
-    @property
-    def listeners(self):
-        return self.LISTENERS
-
-    @listeners.setter
-    def listeners(self, value):
-        self.LISTENERS = value
-
-    @property
-    def timeout(self):
-        return self.MAX_WAIT_TIME
-
-    @timeout.setter
-    def timeout(self, value):
-        self.MAX_WAIT_TIME = value
-
-    @property
-    def ddos_limit(self):
-        return self.DDOS_PROTOCOL_VIOLATION_RATE
-
-    @ddos_limit.setter
-    def ddos_limit(self, value):
-        self.DDOS_PROTOCOL_VIOLATION_RATE = value
 
     def connect():
         self._pkt_crafter.connect()
@@ -139,32 +83,16 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
     @staticmethod
     def _xid():
         _xid = [
-            randrange(255),
-            randrange(255),
-            randrange(255),
-            randrange(255),
+            random.randrange(255),
+            random.randrange(255),
+            random.randrange(255),
+            random.randrange(255),
         ] # random transaction ID
         return _xid
 
     @staticmethod
     def _rid():
-        return md5(str(time())).hexdigest()
-
-    def timeout(wait):
-        def wrap_function(func):
-            @wraps(func)
-            def __wrapper(*args, **kwargs):
-                def handler(signum, frame):
-                    raise dhcp_relay.exceptions.TimeoutException
-                old = signal.signal(signal.SIGALRM, handler)
-                signal.setitimer(signal.ITIMER_REAL, float(wait) / 1000)
-                try:
-                    result = func(*args, **kwargs)
-                finally:
-                    signal.signal(signal.SIGALRM, old)
-                return result
-            return __wrapper
-        return wrap_function
+        return hashlib.md5(str(time.time())).hexdigest()
 
     def send_discover(self, mac, ip=None):
         _xid = self._xid()
@@ -179,11 +107,11 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
         return self._pkt_crafter.send_discover(_rid, _xid, mac, ip)
         # sends DHCP Discover Packet
 
-    @timeout(self.MAX_WAIT_TIME)
+    @timeout(_MAX_WAIT_TIME)
     def bring_subscriber_up(self, mac, ip=None):
         if not self.send_discover(mac, ip):
             return False
-        start_time = time()
+        start_time = time.time()
         while (not self.subs_up.get(mac, '')):
             continue  # wait till subs comes up
         self.subs_up.pop(mac, '')
