@@ -13,11 +13,19 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+# import std lib
+import os
+import socket
+import logging
+from logging.handlers import RotatingFileHandler
+
 # third party libs
 import yaml
 
 # import local modules
 from dhcp_relay.defaults import DHCPDefaults
+
+log = logging.getLogger(__name__)
 
 
 class DHCPGlobals(DHCPDefaults):
@@ -47,46 +55,91 @@ class DHCPGlobals(DHCPDefaults):
         }
     }
 
+    PROFILE = logging.PROFILE = 15
+    TRACE = logging.TRACE = 5
+    GARBAGE = logging.GARBAGE = 1
+    QUIET = logging.QUIET = 1000
+
+    LOGGING_LEVELS = {
+        'all': logging.NOTSET,
+        'debug': logging.DEBUG,
+        'error': logging.ERROR,
+        'critical': logging.CRITICAL,
+        'garbage': GARBAGE,
+        'info': logging.INFO,
+        'profile': PROFILE,
+        'quiet': QUIET,
+        'trace': TRACE,
+        'warning': logging.WARNING,
+    }
+
     ######################
 
     _config_file_buf = None
 
     def __init__(self,
-                 config_file=None,
-                 server_ip=None,
-                 server_id=None,
-                 server_port=None,
-                 client_ip=None,
-                 client_port=None,
-                 lease_time=None,
-                 listener_threads=None,
-                 max_wait=None,
-                 log_level=None,
-                 log_file=None,
-                 log_full=None,
-                 log_date_format=None,
-                 daemon=None,
-                 multiprocessing=None):
+                 **kwargs):
         # CLI arguments
         # none of them mandatory
-        self._config_file = config_file
-        self._server_ip = server_ip
-        self._server_port = server_port
-        self._server_id = server_id
-        self._client_ip = client_ip
-        self._client_port = client_port
-        self._lease_time = lease_time
-        self._listener_threads = listener_threads
-        self._max_wait = max_wait
-        self._ddos_limit = ddos_limit
-        self._log_level = log_level
-        self._log_file = log_file
-        self._log_full = log_full
-        self._log_date_format = log_date_format
-        self._daemon = daemon
-        self._multiprocessing = multiprocessing
-
+        for karg, warg in kwargs.items():
+            arg_name = '_'+karg
+            setattr(self, arg_name, warg)
+        self._process_logging_vars()
+        self._setup_logging()
+        self._process_other_args()
         self._process_args()
+
+    def _process_kwargs(self, kargs):
+        for arg in kargs:
+            attr = arg.upper()
+            val = None
+            default = getattr(self, arg, None)
+            if self._config_file_buf:
+                setattr(self, attr, self._config_file_buf.get(arg))
+            cli_val = getattr(self, '_'+arg, None)
+            if cli_val is not None:
+                setattr(self, attr, cli_val)
+
+    def _process_logging_vars(self):
+        _logging_vars = (
+            'log_file',
+            'log_level',
+            'log_format',
+            'log_date_format',
+            'log_full'
+        )
+        self._process_kwargs(_logging_vars)
+
+    def _setup_logging(self):
+        self.LOGGING_LEVEL = self.LOGGING_LEVELS.get(self.LOG_LEVEL.lower(),
+                                                     logging.WARNING)
+        log_dir = os.path.dirname(self.LOG_FILE)
+        if not os.path.exists(log_dir):
+            logging.getLogger(__name__).info('Log directory not found, \
+                trying to create it: {0}'.format(log_dir))
+            try:
+                os.makedirs(log_dir, mode=0o700)
+            except OSError as ose:
+                print('Failed to create directory'
+                      'for log file: {0} ({1})'.format(log_dir, ose))
+                return
+        try:
+            handler = RotatingFileHandler(self.LOG_FILE,
+                                          mode='a',
+                                          encoding='utf-8',
+                                          delay=0)
+        except (IOError, OSError):
+            print(
+                'Failed to open log file, do you have permission to write to '
+                '{0}?'.format(self.LOG_FILE)
+            )
+            return
+        handler.setLevel(self.LOGGING_LEVEL)
+        formatter = logging.Formatter(self.LOG_FORMAT,
+                                      datefmt=self.LOG_DATE_FORMAT)
+        handler.setFormatter(formatter)
+        self.LOGGING_HANDLER = handler
+        log.addHandler(self.LOGGING_HANDLER)
 
     def _process_args(self):
         self._config_file_arg()  # mandatory to be processed at the beginning
@@ -97,17 +150,20 @@ class DHCPGlobals(DHCPDefaults):
         self._client_ip_arg()
         self._client_port_arg()
 
-        self._other_args()
+        self._process_other_args()
 
     def _config_file_arg(self):
         if self._config_file:
             self.CONFIG_FILE = self._config_file
         try:
+            log.debug('Trying to load {cfile} as config file'.format(
+                cfile=self.CONFIG_FILE))
             _cfg_file_stream = file(self.CONFIG_FILE, 'r')
             self._config_file_buf = yaml.load(_cfg_file_stream)
         except IOError:
-            # no cfg file, no problem
-            pass
+            log.error('Unable to load {cfile}. This may not be critical if '
+                      'the server details have been specified as CLI'
+                      'arguments'.format(cfile=self.CONFIG_FILE))
 
     def _server_ip_arg(self):
         if self._config_file_buf:
@@ -115,6 +171,7 @@ class DHCPGlobals(DHCPDefaults):
                                                   .get('ip')
         if self._server_ip:
             self.SERVER_IP = self._server_ip
+        log.debug('Server IP: {sip}'.format(sip=self.SERVER_IP))
 
     def _server_id_arg(self):
         if self._config_file_buf:
@@ -123,6 +180,9 @@ class DHCPGlobals(DHCPDefaults):
                                                        self.SERVER_IP)
         if self._server_ip:
             self.SERVER_ID = self._server_id
+        if not hasattr(self, 'SERVER_ID') or not self.SERVER_ID:
+            self.SERVER_ID = self.SERVER_IP
+        log.debug('Server ID: {sid}'.format(sid=self.SERVER_ID))
 
     def _server_port_arg(self):
         if self._config_file_buf:
@@ -131,6 +191,10 @@ class DHCPGlobals(DHCPDefaults):
                                                          self.SERVER_PORT)
         if self._server_ip:
             self.SERVER_PORT = self._server_ip
+        log.debug('Server port: {sport}'.format(sport=self.SERVER_PORT))
+
+    def _get_lo0(self):
+        self.CLIENT_IP = socket.gethostbyname(socket.gethostname())
 
     def _client_ip_arg(self):
         if self._config_file_buf:
@@ -138,6 +202,7 @@ class DHCPGlobals(DHCPDefaults):
                                                   .get('ip')
         if self._server_ip:
             self.CLIENT_IP = self._server_ip
+        log.debug('Client IP: {cip}'.format(cip=self.CLIENT_IP))
 
     def _client_port_arg(self):
         if self._config_file_buf:
@@ -146,24 +211,16 @@ class DHCPGlobals(DHCPDefaults):
                                                          self.CLIENT_PORT)
         if self._client_ip:
             self.CLIENT_PORT = self._client_ip
+        log.debug('Client port: {cport}'.format(cport=self.CLIENT_PORT))
 
-    def _other_args(self):
+    def _process_other_args(self):
         _all_other_args = (
             'lease_time',
             'listener_threads',
             'max_wait',
-            'ddos_limit',
-            'log_file',
-            'log_level',
-            'log_date_format',
-            'log_full'
+            'ddos_limit'
         )
-        for arg in _all_other_args:
-            attr = arg.upper()
-            val = None
-            default = getattr(self, arg, None)
-            if self._config_file_buf:
-                setattr(self, attr, self._config_file_buf.get(arg))
-            cli_val = getattr(self, '_'+arg, None)
-            if cli_val is not None:
-                setattr(self, attr, cli_val)
+        self._process_kwargs(_all_other_args)
+        if hasattr(self, 'DDOS_LIMIT') and self.DDOS_LIMIT:
+            PKT_SPLAY = 1.0/self.DDOS_LIMIT  # time between two consecutive
+            # DHCP requests when the DDoS limit is configured

@@ -18,6 +18,7 @@ import os
 import time
 import random
 import hashlib
+import logging
 
 # third party libs
 from timeout_decorator import timeout
@@ -31,6 +32,7 @@ from dhcp_relay.listener import DHCPListener
 from dhcp_relay.pkt_crafter import DHCPPktCrafter
 
 _MAX_WAIT_TIME = DHCPDefaults.MAX_WAIT
+
 
 
 class DHCPRelay(DHCPCommons, DHCPGlobals):
@@ -68,6 +70,7 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
                              daemon=daemon,
                              multiprocessing=multiprocessing)
         _MAX_WAIT_TIME = self.MAX_WAIT
+        logger = None
         self._pkt_crafter = DHCPPktCrafter(self, logger)
         self._logger = logger
 

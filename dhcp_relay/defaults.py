@@ -30,7 +30,8 @@ class DHCPDefaults:
     LOGGING_ENABLED = True
     LOG_FILE = '/var/log/dhcp-relay.log'
     LOG_LEVEL = 'warning'
-    LOG_DATEFMT = '%Y-%m-%d %H:%M:%S'
+    LOG_FORMAT = '%(asctime)s [%(name)-15s][%(levelname)-8s] %(message)s'
+    LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
     DETAILED_LOG = True
 
     LISTENER_THREADS = 5
