@@ -14,14 +14,27 @@
 # the License.
 
 
-class PktTypeError(Exception):
-    pass
+class DHCPDefaults:
 
+    CONFIG_FILE = '/etc/dhcp-relay/config.yml'
 
-class BindError(Exception):
-    pass
+    DAEMON = True
+    MULTIPROCESSING = False
 
+    SERVER_PORT = 67  # can be set by the user
+    CLIENT_PORT = 67
 
-class TimeoutException(Exception):
-    pass
+    DUMMY_IP_ADDRESS = '172.17.17.1'
 
+    LEASE_TIME = 24 * 3600
+
+    LOGGING_ENABLED = True
+    LOG_FILE = '/var/log/dhcp-relay.log'
+    LOG_LEVEL = 'warning'
+    LOG_FORMAT = '%(asctime)s [%(name)-15s][%(levelname)-8s] %(message)s'
+    LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+    DETAILED_LOG = True
+
+    LISTENER_THREADS = 5
+
+    MAX_WAIT = 3  # seconds

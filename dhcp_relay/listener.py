@@ -13,23 +13,25 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
+# import stdlib
+import logging
 from threading import Thread
 
 # local modules
 from dhcp_relay.globals import DHCPGlobals
 
+log = logging.getLogger(__name__)
+
 
 class DHCPListener(DHCPGlobals, Thread):
 
     def __init__(self,
-                 pkt_crafter,
-                 logger=None):
-
+                 relay,
+                 pkt_crafter):
         Thread.__init__(self)
-
+        self._relay = relay
         self._pkt_crafter = pkt_crafter
-        self._logger = logger
-
+        log.addHandler(self._relay.LOGGING_HANDLER)
 
     def run(self):
         while True:
@@ -37,13 +39,13 @@ class DHCPListener(DHCPGlobals, Thread):
             if received_packet is not None:
                 xid = received_packet.GetOption("xid")
                 xid_str = '.'.join([str(xid_e) for xid_e in xid])
-                mac = self._pkt_crafter.xid_mac_map.get(xid_str)
+                mac = self._relay.XID_MAC.get(xid_str)
                 pkt_type = ''
                 if received_packet.IsDhcpOfferPacket() and mac:
                     pkt_type = 'DHCPOFFER'
                     assigned_ip_address = received_packet.GetOption("yiaddr")
                     lease_time = received_packet.GetOption("ip_address_lease_time")
-                    self._pkt_crafter.mac_ip_map[mac] = assigned_ip_address
+                    self._relay.mac_ip(mac, assigned_ip_address)
                     self._pkt_crafter.send_request(
                         xid,
                         mac,
@@ -52,17 +54,15 @@ class DHCPListener(DHCPGlobals, Thread):
                     )
                 elif received_packet.IsDhcpAckPacket():
                     pkt_type = 'DHCPACK'
-                    self._pkt_crafter.xid_mac_map.pop(xid_str, '')
+                    self._relay.xid_mac_pop(xid_str)
                     if mac:
-                        self._pkt_crafter.subs_up[mac] = True
-                if self._logger is not None and self.LOGGING_ENABLED:
-                    log_message = 'Received {pkt_type} message from AC, for XID: {xid}, corresponding for MAC address: {mac}.'.format(
-                        xid=str(xid),
-                        mac=str(mac),
-                        pkt_type=pkt_type
-                    )
-                    if self.DETAILED_LOG:
-                        log_message += '\nPacket structure:\n{pkt}'.format(
-                            pkt=received_packet.str()
-                        )
-                    self._logger.info(log_message)
+                        self._relay.subs_up(mac, True)
+                if self._relay.LOGGING_ENABLED:
+                    log.info('Received {pkt_type} message from AC, for XID: '
+                             '{xid}, corresponding for MAC address: {mac}.'\
+                                .format(xid=str(xid),
+                                        mac=str(mac),
+                                        pkt_type=pkt_type))
+                    if self._relay.DETAILED_LOG:
+                        log.debug('Packet structure')
+                        log.debug(received_packet.str())
