@@ -71,7 +71,7 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
                              log_date_format=log_date_format,
                              daemon=daemon,
                              multiprocessing=multiprocessing)
-        DHCPCommons.__init__(self.MAX_WAIT)
+        DHCPCommons.__init__(self, self.MAX_WAIT)
         _MAX_WAIT_TIME = self.MAX_WAIT
         self._pkt_crafter = DHCPPktCrafter(self)
         log.addHandler(self.LOGGING_HANDLER)
@@ -82,9 +82,13 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
         This is initiated in the main process only as it binds
         the relay agent to the client IP address.
         '''
+        if not self.SERVER_IP:
+            log.critical('Unable to turn up the DHCP relay.')
+            log.critical('Please specify at least the server IP address.')
+            return
         self._pkt_crafter.connect()
         _listeners = []
-        for _ in range(selg.LISTENERS):  # start as many listeners as needed
+        for _ in range(self.LISTENER_THREADS):  # start as many listeners as needed
             _listener = DHCPListener(self, self._pkt_crafter)
             _listeners.append(_listener)
         for _listener in _listeners:

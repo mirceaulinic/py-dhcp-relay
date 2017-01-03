@@ -18,6 +18,10 @@ class PktTypeError(Exception):
     pass
 
 
+class BindError(Exception):
+    pass
+
+
 class TimeoutException(Exception):
     pass
 

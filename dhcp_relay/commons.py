@@ -19,7 +19,10 @@ from threading import Lock
 # third party libs
 from timeout_decorator import timeout
 
-_MAX_WAIT_TIME = 0
+# import local modules
+from dhcp_relay.defaults import DHCPDefaults
+
+_MAX_WAIT_TIME = DHCPDefaults.MAX_WAIT
 
 
 class DHCPCommons:
@@ -28,7 +31,7 @@ class DHCPCommons:
     XID_MAC = {}
     SUBS_UP = {}
     MAC_IP = {}
-    last_pkt_sent = 0
+    LAST_PKT_SENT = 0
 
     _xid_mac_lock = Lock()
     _subs_up_lock = Lock()
@@ -39,7 +42,7 @@ class DHCPCommons:
         _MAX_WAIT_TIME = max_wait
 
     @timeout(_MAX_WAIT_TIME)
-    def _acquire_wait(self, locker)
+    def _acquire_wait(self, locker):
         while not locker.acquire(False):
             pass
 
@@ -57,23 +60,27 @@ class DHCPCommons:
     def xid_mac(self, key, value):
         self._acquire_and_push(key, value, 'XID_MAC', _xid_mac_lock)
 
-    def xid_mac_pop(self, key, value)
+    def xid_mac_pop(self, key):
         return self._acquire_and_pop(key, 'XID_MAC', _xid_mac_lock)
 
     def subs_up(self, key, value):
         self._acquire_and_push(key, value, 'SUBS_UP', _subs_up_lock)
 
-    def subs_up_pop(self, key, value):
+    def subs_up_pop(self, key):
         return self._acquire_and_pop(key, 'SUBS_UP', _subs_up_lock)
 
     def mac_ip(self, key, value):
         self._acquire_and_push(key, value, 'MAC_IP', _mac_ip_lock)
 
-    def mac_ip_pop(self, key, value):
+    def mac_ip_pop(self, key):
         return self._acquire_and_pop(key, 'MAC_IP', _mac_ip_lock)
 
+    @property
+    def last_pkt_sent(self):
+        return self.LAST_PKT_SENT
+
     @last_pkt_sent.setter
-    def set_last_pkt_sent(self, value):
+    def last_pkt_sent(self, value):
         self._acquire_wait(_last_pkt_sent_lock)
-        self.last_pkt_sent = value
+        self.LAST_PKT_SENT = value
         self._last_pkt_sent_lock.release()

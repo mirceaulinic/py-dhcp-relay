@@ -58,8 +58,8 @@ class DHCPListener(DHCPGlobals, Thread):
                     if mac:
                         self._relay.subs_up(mac, True)
                 if self._relay.LOGGING_ENABLED:
-                    log_message('Received {pkt_type} message from AC, for XID: '
-                                '{xid}, corresponding for MAC address: {mac}.'\
+                    log.info('Received {pkt_type} message from AC, for XID: '
+                             '{xid}, corresponding for MAC address: {mac}.'\
                                 .format(xid=str(xid),
                                         mac=str(mac),
                                         pkt_type=pkt_type))

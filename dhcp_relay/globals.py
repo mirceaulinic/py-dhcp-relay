@@ -163,8 +163,8 @@ class DHCPGlobals(DHCPDefaults):
             self._config_file_buf = yaml.load(_cfg_file_stream)
         except IOError:
             log.error('Unable to load {cfile}. This may not be critical if '
-                      'the server details have been specified as CLI'
-                      'arguments'.format(cfile=self.CONFIG_FILE))
+                      'the server details have been specified as CLI '
+                      'arguments.'.format(cfile=self.CONFIG_FILE))
 
     def _server_ip_arg(self):
         if self._config_file_buf:
@@ -190,8 +190,8 @@ class DHCPGlobals(DHCPDefaults):
             self.SERVER_PORT = self._config_file_buf.get('server', {})\
                                                     .get('port',
                                                          self.SERVER_PORT)
-        if self._server_ip:
-            self.SERVER_PORT = self._server_ip
+        if self._server_port:
+            self.SERVER_PORT = self._server_port
         log.debug('Server port: {sport}'.format(sport=self.SERVER_PORT))
 
     def _get_lo0(self):
