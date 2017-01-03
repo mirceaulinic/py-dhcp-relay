@@ -26,7 +26,6 @@ from pydhcplib.dhcp_network import *
 import dhcp_relay.util
 import dhcp_relay.exceptions
 from dhcp_relay.globals import DHCPGlobals
-from dhcp_relay.commons import DHCPCommons
 
 log = logging.getLogger(__name__)
 

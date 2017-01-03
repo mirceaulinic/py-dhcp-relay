@@ -18,7 +18,7 @@ class DHCPDefaults:
     CONFIG_FILE = '/etc/dhcp-relay/config.yml'
 
     DAEMON = True
-    MULTIPROCESSING = True
+    MULTIPROCESSING = False
 
     SERVER_PORT = 67  # can be set by the user
     CLIENT_PORT = 67

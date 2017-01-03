@@ -54,6 +54,7 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
                  log_date_format=None,
                  daemon=None,
                  multiprocessing=None):
+        '''DHCP Relay constructor.'''
         DHCPGlobals.__init__(self,
                              config_file=config_file,
                              server_ip=server_ip,
@@ -70,11 +71,17 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
                              log_date_format=log_date_format,
                              daemon=daemon,
                              multiprocessing=multiprocessing)
+        DHCPCommons.__init__(self.MAX_WAIT)
         _MAX_WAIT_TIME = self.MAX_WAIT
         self._pkt_crafter = DHCPPktCrafter(self)
         log.addHandler(self.LOGGING_HANDLER)
 
-    def connect():
+    def connect(self):
+        '''
+        Virtually establish the connection to the DHCP server.
+        This is initiated in the main process only as it binds
+        the relay agent to the client IP address.
+        '''
         self._pkt_crafter.connect()
         _listeners = []
         for _ in range(selg.LISTENERS):  # start as many listeners as needed
@@ -84,7 +91,8 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
             _listener.start()
 
     @staticmethod
-    def _xid():
+    def _get_xid():
+        '''Return the xID of the DHCP request packet.'''
         _xid = [
             random.randrange(255),
             random.randrange(255),
@@ -94,15 +102,17 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
         return _xid
 
     @staticmethod
-    def _rid():
+    def _get_rid():
+        '''Return an unique request ID.'''
         return hashlib.md5(str(time.time())).hexdigest()
 
     def send_discover(self, mac, ip=None):
-        _xid = self._xid()
-        _rid = self._rid()  # Unique Request ID
+        '''Send DHCP discover packet.'''
+        _xid = self._get_xid()
+        _rid = self._get_rid()  # Unique Request ID
         _xid_str = '.'.join([str(xid_e) for xid_e in xid])
-        self.xid_mac_map[_xid_str] = mac
-        self.subs_up[mac] = False
+        self.xid_mac(_xid_str, mac)
+        self.subs_up(mac, False)
         if not ip:
             ip = self.DUMMY_IP_ADDRESS
             # if no specific IP Address is requested,
@@ -112,24 +122,32 @@ class DHCPRelay(DHCPCommons, DHCPGlobals):
 
     @timeout(_MAX_WAIT_TIME)
     def bring_subscriber_up(self, mac, ip=None):
+        '''Bring the subscriber up.'''
         if not self.send_discover(mac, ip):
             return False
         start_time = time.time()
-        while (not self.subs_up.get(mac, '')):
+        while (not self.SUBS_UP.get(mac, '')):
             continue  # wait till subs comes up
-        self.subs_up.pop(mac, '')
-        return self.mac_ip_map.pop(mac, '')  # returns the assigned IP Address
+        self.subs_up_pop(mac)
+        return self.mac_ip_pop(mac)  # returns the assigned IP Address
 
     def bring_subscribers_list_up(self, mac_list):
+        '''
+        Bring up a list of subs.
+        This method is a bets effort therefore will not
+        send back a notification for each subscriber.
+        '''
         for mac in mac_list:
             self.send_discover(mac)
         return True
 
     def send_release(self, mac):
-        _xid = self._xid()
-        _rid = self._rid()
+        '''Send DHCP release request packet.'''
+        _xid = self._get_xid()
+        _rid = self._get_rid()
         self._pkt_crafter.send_release(_rid, _xid, mac)
 
     def bring_subscriber_down(self, mac):
+        '''Tear down the subscriber.'''
         self.send_release(mac)
         return True
